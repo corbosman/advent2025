@@ -17,11 +17,10 @@ pub fn process(input: &str) -> miette::Result<String> {
                 _ => return Err(miette::miette!("Invalid direction: {}", dir)),
             };
 
-            if (dir == 'L' && (dial == 0 || dial > old_dial)) || (dir == 'R' && (dial == 0 || dial < old_dial)) {
-                if old_dial != 0 {
+            if ((dir == 'L' && (dial == 0 || dial > old_dial)) || (dir == 'R' && (dial == 0 || dial < old_dial)))
+                && old_dial != 0 {
                     code += 1;
                 }
-            }
         }
     }
     Ok(code.to_string())
