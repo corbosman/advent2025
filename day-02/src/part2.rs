@@ -5,43 +5,43 @@ use nom::{
     multi::separated_list1,
     sequence::separated_pair,
 };
+use rayon::prelude::*;
 
 #[tracing::instrument]
 pub fn process(input: &str) -> miette::Result<String> {
     let (_, ranges) = ranges(input).map_err(|e| miette::miette!("Parse error: {:?}", e))?;
-    let mut counter = 0;
 
-    for range in ranges {
-        let (start, end) = range;
-        for num in start..=end {
+    let counter: u64 = ranges
+        .par_iter()
+        .flat_map(|(start, end)| *start..=*end)
+        .map(|num| {
             let s = num.to_string();
-            let len: i64 = s.len() as i64;
-            let factors = factors(len);
-            for factor in factors {
+            let len: u64 = s.len() as u64;
+            for factor in factors(len) {
                 let slice_size = (len / factor) as usize;
                 let factor_usize = factor as usize;
-                let slices: Vec<i64> = (0..factor_usize)
+                let slices: Vec<u64> = (0..factor_usize)
                     .map(|i| s[i * slice_size..(i + 1) * slice_size].parse().unwrap())
                     .collect();
 
                 if slices.windows(2).all(|w| w[0] == w[1]) {
-                    counter += num;
-                    break;
+                    return num;
                 }
             }
-        }
-    }
+            0
+        })
+        .sum();
 
     Ok(counter.to_string())
 }
 
-fn ranges(input: &str) -> IResult<&str, Vec<(i64, i64)>> {
-    separated_list1(tag(","), separated_pair(complete::i64, tag("-"), complete::i64)).parse(input)
+fn ranges(input: &str) -> IResult<&str, Vec<(u64, u64)>> {
+    separated_list1(tag(","), separated_pair(complete::u64, tag("-"), complete::u64)).parse(input)
 }
 
-fn factors(n: i64) -> Vec<i64> {
+fn factors(n: u64) -> Vec<u64> {
     let mut divs = Vec::new();
-    let sqrt_n = (n as f64).sqrt() as i64;
+    let sqrt_n = (n as f64).sqrt() as u64;
 
     for i in 2..=sqrt_n {
         if n % i == 0 {
@@ -56,7 +56,6 @@ fn factors(n: i64) -> Vec<i64> {
         divs.push(n);
     }
 
-    divs.sort();
     divs
 }
 
