@@ -26,13 +26,12 @@ pub fn process(input: &str) -> miette::Result<String> {
     let height: i32 = input.lines().count() as i32;
     let width: i32 = input.lines().next().map(|l| l.len() as i32).unwrap_or(0);
 
-    let mut result = 1;
     let mut total_rolls = 0;
 
-    while result > 0 {
+    loop {
         let mut deleted_rolls: Vec<IVec2> = Vec::new();
 
-        result = map.iter().fold(0, |mut acc, (pos, _)| {
+        let result = map.iter().fold(0, |mut acc, (pos, _)| {
 
             let mut neighbors = 0;
 
@@ -58,6 +57,10 @@ pub fn process(input: &str) -> miette::Result<String> {
 
         for pos in &deleted_rolls {
             map.remove(pos);
+        }
+
+        if result == 0 {
+            break;
         }
     }
 
