@@ -3,26 +3,38 @@ use nom::{
     character::complete::{line_ending, satisfy},
     multi::{many1, separated_list1},
 };
-use itertools::Itertools;
 
 #[tracing::instrument]
 pub fn process(input: &str) -> miette::Result<String> {
-    let (_, batteries) = batteries(input).map_err(|e| miette::miette!("Parse error: {:?}", e))?;
+    let (_, mut batteries) = batteries(input).map_err(|e| miette::miette!("Parse error: {:?}", e))?;
 
-    let sum: u32 = batteries
-        .iter()
-        .map(|row| {
-            let mut row_pairs: Vec<u32> = row
-                .iter()
-                .combinations(2)
-                .map(|pair| *pair[0] as u32 * 10 + *pair[1] as u32)
-                .collect();
-            row_pairs.sort_by(|a, b| b.cmp(a));
-            row_pairs[0]
-        })
-        .sum();
+    let joltages: Vec<u64> = batteries.iter_mut().map(|row| find_joltage(row)).collect();
 
-    Ok(sum.to_string())
+    Ok(joltages.iter().sum::<u64>().to_string())
+}
+
+fn find_joltage(row: &mut Vec<i8>) -> u64 {
+    let mut max_joltage: Vec<i8> = row.drain(0..12).collect();
+
+    while row.len() > 0 {
+        let num = row.remove(0);
+
+        for i in 0..12 {
+            let mut joltage = max_joltage.clone();
+            joltage.remove(i);
+            joltage.push(num);
+            if array_to_number(&joltage) > array_to_number(&max_joltage) {
+                max_joltage = joltage;
+                break;
+            }
+        }
+    }
+
+    array_to_number(&max_joltage)
+}
+
+fn array_to_number(digits: &[i8]) -> u64 {
+    digits.iter().fold(0u64, |acc, &digit| acc * 10 + digit as u64)
 }
 
 fn batteries(input: &str) -> IResult<&str, Vec<Vec<i8>>> {
