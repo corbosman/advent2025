@@ -38,6 +38,10 @@ pub fn process(input: &str) -> miette::Result<String> {
             if map.contains_key(&new_pos) {
                 neighbors += 1;
             }
+
+            if neighbors == 4 {
+                break;
+            }
         }
 
         if neighbors < 4 {
