@@ -25,14 +25,15 @@ pub fn process(input: &str) -> miette::Result<String> {
     Ok(result.to_string())
 }
 
-fn transpose<T: Copy>(grid: Vec<Vec<T>>) -> Vec<Vec<T>> {
+fn transpose(grid: Vec<Vec<char>>) -> Vec<Vec<char>> {
     (0..grid[0].len())
         .map(|col| grid.iter().map(|row| row[col]).collect())
         .collect()
 }
 
 fn collapse(grid: &[Vec<char>]) -> Vec<Vec<i64>> {
-    let nums: Vec<Option<i64>> = grid.iter()
+    let nums: Vec<Option<i64>> = grid
+        .iter()
         .map(|row| {
             let s: String = row.iter().filter(|&&c| c != ' ').collect();
             if s.is_empty() { None } else { Some(s.parse().unwrap()) }
