@@ -1,6 +1,6 @@
 use nom::{
-    character::complete::{newline, none_of},
-    multi::{many0, many1},
+    character::complete::{line_ending, not_line_ending},
+    multi::many1,
     sequence::terminated,
     IResult, Parser,
 };
@@ -51,7 +51,8 @@ fn parse_input(input: &str) -> (Vec<Vec<char>>, Vec<char>) {
 }
 
 fn chars(input: &str) -> IResult<&str, Vec<char>> {
-    terminated(many0(none_of("\n")), newline).parse(input)
+    let (remainder, line) = terminated(not_line_ending, line_ending).parse(input)?;
+    Ok((remainder, line.chars().collect()))
 }
 
 
