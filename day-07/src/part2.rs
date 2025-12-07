@@ -7,7 +7,7 @@ use nom::{
     multi::{many0, separated_list1},
     IResult, Parser,
 };
-use std::mem::swap;
+use tracing::info;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tachyon {
@@ -16,21 +16,42 @@ pub enum Tachyon {
     Beam
 }
 
-#[tracing::instrument]
+#[tracing::instrument(skip(input))]
 pub fn process(input: &str) -> miette::Result<String> {
     let (_, (map, height)) = read_map(Span::new(input)).map_err(|e| miette!("parse failed {}", e))?;
     let splits = fire_beam(&map, height);
     Ok(splits.to_string())
 }
 
-pub fn fire_beam(map: &HashMap<IVec2, Tachyon>, mut height: i32) -> i32 {
+pub fn fire_beam(map: &HashMap<IVec2, Tachyon>, height: i32) -> i32 {
     let manifold = map.iter().find(|&(_, t)| *t == Tachyon::Manifold).map(|(&pos, _)| pos).unwrap();
-
-    count_timelines(map, height, 0)
+    let mut cache: HashMap<IVec2, i32> = HashMap::new();
+    count_timelines(map, &mut cache, height, manifold + IVec2::Y)
 }
 
-pub fn count_timelines(map: &HashMap<IVec2, Tachyon>, mut height: i32, mut count: i32) -> i32 {
-    todo!()
+pub fn count_timelines(splitters: &HashMap<IVec2, Tachyon>, cache: &mut HashMap<IVec2, i32>, height: i32, pos: IVec2,
+) -> i32 {
+    if let Some(&cached) = cache.get(&pos) {
+        info!("cached value for {:?}: {}", pos, cached);
+        return cached;
+    }
+
+    info!("pos: {:?}, height: {}", pos, height);
+
+    if height == 0 {
+        return 1;
+    }
+
+    let result = if splitters.contains_key(&pos) {
+        info!("splitter found at {:?}", pos);
+        count_timelines(splitters, cache, height, pos + IVec2::NEG_X)+ count_timelines(splitters, cache, height, pos + IVec2::X)
+    } else {
+        count_timelines(splitters, cache, height - 1, pos + IVec2::Y)
+    };
+
+    info!("caching count for {:?}: {}", pos, result);
+    cache.insert(pos, result);
+    result
 }
 
 pub fn read_map(input: Span) -> IResult<Span, (HashMap<IVec2, Tachyon>, i32)> {
@@ -58,7 +79,7 @@ pub type Span<'a> = LocatedSpan<&'a str>;
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_log::test]
     fn test_process() -> miette::Result<()> {
         let input = ".......S.......
 ...............
