@@ -25,7 +25,7 @@ pub fn count_timelines(splitters: &HashSet<IVec2>, cache: &mut HashMap<IVec2, i6
     }
 
     let result = if splitters.contains(&pos) {
-        count_timelines(splitters, cache, height, pos + IVec2::NEG_X) + count_timelines(splitters, cache, height, pos + IVec2::X)
+        count_timelines(splitters, cache, height - 1, pos + IVec2::new(-1, 1)) + count_timelines(splitters, cache, height - 1, pos + IVec2::new(1, 1))
     } else {
         count_timelines(splitters, cache, height - 1, pos + IVec2::Y)
     };
