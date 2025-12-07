@@ -7,7 +7,6 @@ use nom::{
     multi::{many0, separated_list1},
     IResult, Parser,
 };
-use tracing::info;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tachyon {
@@ -23,39 +22,34 @@ pub fn process(input: &str) -> miette::Result<String> {
     Ok(splits.to_string())
 }
 
-pub fn fire_beam(map: &HashMap<IVec2, Tachyon>, height: i32) -> i32 {
+pub fn fire_beam(map: &HashMap<IVec2, Tachyon>, height: i64) -> i64 {
     let manifold = map.iter().find(|&(_, t)| *t == Tachyon::Manifold).map(|(&pos, _)| pos).unwrap();
-    let mut cache: HashMap<IVec2, i32> = HashMap::new();
+    let mut cache: HashMap<IVec2, i64> = HashMap::new();
     count_timelines(map, &mut cache, height, manifold + IVec2::Y)
 }
 
-pub fn count_timelines(splitters: &HashMap<IVec2, Tachyon>, cache: &mut HashMap<IVec2, i32>, height: i32, pos: IVec2,
-) -> i32 {
+pub fn count_timelines(splitters: &HashMap<IVec2, Tachyon>, cache: &mut HashMap<IVec2, i64>, height: i64, pos: IVec2,
+) -> i64 {
     if let Some(&cached) = cache.get(&pos) {
-        info!("cached value for {:?}: {}", pos, cached);
         return cached;
     }
-
-    info!("pos: {:?}, height: {}", pos, height);
 
     if height == 0 {
         return 1;
     }
 
     let result = if splitters.contains_key(&pos) {
-        info!("splitter found at {:?}", pos);
         count_timelines(splitters, cache, height, pos + IVec2::NEG_X)+ count_timelines(splitters, cache, height, pos + IVec2::X)
     } else {
         count_timelines(splitters, cache, height - 1, pos + IVec2::Y)
     };
 
-    info!("caching count for {:?}: {}", pos, result);
     cache.insert(pos, result);
     result
 }
 
-pub fn read_map(input: Span) -> IResult<Span, (HashMap<IVec2, Tachyon>, i32)> {
-    let height: i32 = input.lines().count() as i32;
+pub fn read_map(input: Span) -> IResult<Span, (HashMap<IVec2, Tachyon>, i64)> {
+    let height: i64 = input.lines().count() as i64;
     let (input, rows) = separated_list1(line_ending, many0(splitters)).parse(input)?;
     let hashmap = rows.iter().flatten().flatten().copied().collect::<HashMap<IVec2, Tachyon>>();
     Ok((input, (hashmap, height-1)))
