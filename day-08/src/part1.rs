@@ -1,5 +1,4 @@
-use std::cmp::Ordering;
-use std::collections::BinaryHeap;
+use std::collections::HashSet;
 
 use glam::IVec3;
 use itertools::Itertools;
@@ -12,19 +11,62 @@ use nom::{
 
 #[tracing::instrument]
 pub fn process(input: &str) -> miette::Result<String> {
+    process_with_max(input, 1000)
+}
+
+pub fn process_with_max(input: &str, max: i32) -> miette::Result<String> {
     let (_, lights) = read_input(input).map_err(|e| miette!("parse failed {}", e))?;
 
-    let distances: BinaryHeap<Distance> = lights
+    let pairs: Vec<Distance> = lights
         .iter()
         .tuple_combinations()
-        .map(|(a, b)| Distance {
-            a: *a,
-            b: *b,
-            distance: a.distance_squared(*b),
-        })
+        .map(|(a, b)| Distance::new(*a, *b))
+        .sorted_by_key(|d| d.distance)
         .collect();
-    dbg!(&distances.into_sorted_vec());
-    todo!()
+
+    let strings: Vec<_> = connect_pairs(&pairs, max)
+        .into_iter()
+        .sorted_by_key(|s| std::cmp::Reverse(s.len()))
+        .collect();
+
+    Ok((strings[0].len()*strings[1].len()*strings[2].len()).to_string())
+}
+
+fn connect_pairs(pairs: &[Distance], max: i32) -> Vec<HashSet<IVec3>> {
+    let mut groups: Vec<HashSet<IVec3>> = Vec::new();
+
+    for pair in pairs.iter().take(max as usize) {
+
+        let a_idx = groups.iter().position(|g| g.contains(&pair.a));
+        let b_idx = groups.iter().position(|g| g.contains(&pair.b));
+
+        match (a_idx, b_idx) {
+
+            (Some(i), Some(j)) if i == j => {}
+
+            (Some(i), Some(j)) => {
+                let b_group = groups.remove(j.max(i));
+                let a_group = groups.remove(i.min(j));
+                let mut merged = a_group;
+                merged.extend(b_group);
+                groups.push(merged);
+            }
+
+            (Some(i), None) => {
+                groups[i].insert(pair.b);
+            }
+
+            (None, Some(j)) => {
+                groups[j].insert(pair.a);
+            }
+
+            (None, None) => {
+                groups.push(HashSet::from([pair.a, pair.b]));
+            }
+        }
+    }
+
+    groups
 }
 
 fn read_input(input: &str) -> IResult<&str, Vec<IVec3>> {
@@ -41,26 +83,14 @@ fn light(input: &str) -> IResult<&str, IVec3> {
 struct Distance {
     a: IVec3,
     b: IVec3,
-    distance: i32,
+    distance: i64,
 }
 
-impl PartialEq for Distance {
-    fn eq(&self, other: &Self) -> bool {
-        self.distance == other.distance
-    }
-}
-
-impl Eq for Distance {}
-
-impl PartialOrd for Distance {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for Distance {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.distance.cmp(&other.distance)
+impl Distance {
+    fn new(a: IVec3, b: IVec3) -> Self {
+        let d = a - b;
+        let distance = (d.x as i64).pow(2) + (d.y as i64).pow(2) + (d.z as i64).pow(2);
+        Self { distance, a, b }
     }
 }
 
@@ -92,7 +122,7 @@ mod tests {
 984,92,344
 425,690,689
 ";
-        assert_eq!("40", process(input)?);
+        assert_eq!("40", process_with_max(input, 10)?);
         Ok(())
     }
 }
