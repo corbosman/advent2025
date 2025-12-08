@@ -37,11 +37,8 @@ fn connect_pairs(num_lights: usize, pairs: &[Pair]) -> i64 {
             (Some(i), Some(j)) if i == j => {}
 
             (Some(i), Some(j)) => {
-                let b_group = groups.remove(j.max(i));
-                let a_group = groups.remove(i.min(j));
-                let mut merged = a_group;
-                merged.extend(b_group);
-                groups.push(merged);
+                let other = groups.remove(j.max(i));
+                groups[i.min(j)].extend(other);
             }
 
             (Some(i), None) => {
