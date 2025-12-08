@@ -17,10 +17,10 @@ pub fn process(input: &str) -> miette::Result<String> {
 pub fn process_with_max(input: &str, max: i32) -> miette::Result<String> {
     let (_, lights) = read_input(input).map_err(|e| miette!("parse failed {}", e))?;
 
-    let pairs: Vec<Distance> = lights
+    let pairs: Vec<Pair> = lights
         .iter()
         .tuple_combinations()
-        .map(|(a, b)| Distance::new(*a, *b))
+        .map(|(a, b)| Pair::new(*a, *b))
         .sorted_by_key(|d| d.distance)
         .collect();
 
@@ -32,7 +32,7 @@ pub fn process_with_max(input: &str, max: i32) -> miette::Result<String> {
     Ok((strings[0].len()*strings[1].len()*strings[2].len()).to_string())
 }
 
-fn connect_pairs(pairs: &[Distance], max: i32) -> Vec<HashSet<IVec3>> {
+fn connect_pairs(pairs: &[Pair], max: i32) -> Vec<HashSet<IVec3>> {
     let mut groups: Vec<HashSet<IVec3>> = Vec::new();
 
     for pair in pairs.iter().take(max as usize) {
@@ -80,13 +80,13 @@ fn light(input: &str) -> IResult<&str, IVec3> {
 }
 
 #[derive(Debug)]
-struct Distance {
+struct Pair {
     a: IVec3,
     b: IVec3,
     distance: i64,
 }
 
-impl Distance {
+impl Pair {
     fn new(a: IVec3, b: IVec3) -> Self {
         let d = a - b;
         let distance = (d.x as i64).pow(2) + (d.y as i64).pow(2) + (d.z as i64).pow(2);

@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 
-use glam::IVec3;
+use glam::I64Vec3;
 use itertools::Itertools;
 use miette::miette;
 use nom::{
-    character::complete::{char, line_ending, i32},
+    character::complete::{char, line_ending, i64},
     multi::separated_list1,
     IResult, Parser,
 };
@@ -13,10 +13,10 @@ use nom::{
 pub fn process(input: &str) -> miette::Result<String> {
     let (_, lights) = read_input(input).map_err(|e| miette!("parse failed {}", e))?;
 
-    let pairs: Vec<Distance> = lights
+    let pairs: Vec<Pair> = lights
         .iter()
         .tuple_combinations()
-        .map(|(a, b)| Distance::new(*a, *b))
+        .map(|(a, b)| Pair::new(*a, *b))
         .sorted_by_key(|d| d.distance)
         .collect();
 
@@ -25,11 +25,10 @@ pub fn process(input: &str) -> miette::Result<String> {
     Ok(distance.to_string())
 }
 
-fn connect_pairs(num_lights: usize, pairs: &[Distance]) -> i64 {
-    let mut groups: Vec<HashSet<IVec3>> = Vec::new();
+fn connect_pairs(num_lights: usize, pairs: &[Pair]) -> i64 {
+    let mut groups: Vec<HashSet<I64Vec3>> = Vec::new();
 
     for pair in pairs {
-
         let a_idx = groups.iter().position(|g| g.contains(&pair.a));
         let b_idx = groups.iter().position(|g| g.contains(&pair.b));
 
@@ -58,35 +57,33 @@ fn connect_pairs(num_lights: usize, pairs: &[Distance]) -> i64 {
             }
         }
 
-        if groups.len() == 1 && groups[0].len() == num_lights as usize {
-            return pair.a.x as i64 * pair.b.x as i64;
+        if groups.len() == 1 && groups[0].len() == num_lights {
+            return pair.a.x * pair.b.x;
         }
     }
     panic!("should not happen");
 }
 
-fn read_input(input: &str) -> IResult<&str, Vec<IVec3>> {
+fn read_input(input: &str) -> IResult<&str, Vec<I64Vec3>> {
     let (input, lights) = separated_list1(line_ending, light).parse(input)?;
     Ok((input, lights))
 }
 
-fn light(input: &str) -> IResult<&str, IVec3> {
-    let (input, (x, _, y, _, z)) = (i32, char(','), i32, char(','), i32).parse(input)?;
-    Ok((input, IVec3::new(x, y, z)))
+fn light(input: &str) -> IResult<&str, I64Vec3> {
+    let (input, (x, _, y, _, z)) = (i64, char(','), i64, char(','), i64).parse(input)?;
+    Ok((input, I64Vec3::new(x, y, z)))
 }
 
 #[derive(Debug)]
-struct Distance {
-    a: IVec3,
-    b: IVec3,
+struct Pair {
+    a: I64Vec3,
+    b: I64Vec3,
     distance: i64,
 }
 
-impl Distance {
-    fn new(a: IVec3, b: IVec3) -> Self {
-        let d = a - b;
-        let distance = (d.x as i64).pow(2) + (d.y as i64).pow(2) + (d.z as i64).pow(2);
-        Self { distance, a, b }
+impl Pair {
+    fn new(a: I64Vec3, b: I64Vec3) -> Self {
+        Self { distance: a.distance_squared(b), a, b }
     }
 }
 
