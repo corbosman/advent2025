@@ -1,10 +1,11 @@
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 
+use glam::IVec3;
 use itertools::Itertools;
 use miette::miette;
 use nom::{
-    character::complete::{char, line_ending, u32},
+    character::complete::{char, line_ending, i32},
     multi::separated_list1,
     IResult, Parser,
 };
@@ -17,46 +18,30 @@ pub fn process(input: &str) -> miette::Result<String> {
         .iter()
         .tuple_combinations()
         .map(|(a, b)| Distance {
-            a: a.clone(),
-            b: b.clone(),
-            distance: a.distance(b),
+            a: *a,
+            b: *b,
+            distance: a.distance_squared(*b),
         })
         .collect();
-    dbg!(&distances.into_sorted_vec().len());
+    dbg!(&distances.into_sorted_vec());
     todo!()
 }
 
-fn read_input(input: &str) -> IResult<&str, Vec<Light>> {
+fn read_input(input: &str) -> IResult<&str, Vec<IVec3>> {
     let (input, lights) = separated_list1(line_ending, light).parse(input)?;
     Ok((input, lights))
 }
 
-fn light(input: &str) -> IResult<&str, Light> {
-    let (input, (x, _, y, _, z)) = (u32, char(','), u32, char(','), u32).parse(input)?;
-    Ok((input, Light { x, y, z }))
-}
-
-#[derive(Debug, Clone)]
-struct Light {
-    x: u32,
-    y: u32,
-    z: u32,
-}
-
-impl Light {
-    fn distance(&self, light: &Light) -> f64 {
-        let dx = self.x as f64 - light.x as f64;
-        let dy = self.y as f64 - light.y as f64;
-        let dz = self.z as f64 - light.z as f64;
-        (dx * dx + dy * dy + dz * dz).sqrt()
-    }
+fn light(input: &str) -> IResult<&str, IVec3> {
+    let (input, (x, _, y, _, z)) = (i32, char(','), i32, char(','), i32).parse(input)?;
+    Ok((input, IVec3::new(x, y, z)))
 }
 
 #[derive(Debug)]
 struct Distance {
-    a: Light,
-    b: Light,
-    distance: f64,
+    a: IVec3,
+    b: IVec3,
+    distance: i32,
 }
 
 impl PartialEq for Distance {
@@ -75,7 +60,7 @@ impl PartialOrd for Distance {
 
 impl Ord for Distance {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.distance.partial_cmp(&other.distance).unwrap_or(Ordering::Equal)
+        self.distance.cmp(&other.distance)
     }
 }
 
