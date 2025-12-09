@@ -1,9 +1,7 @@
-use std::collections::{HashMap, HashSet};
-
+use std::collections::HashSet;
 use glam::I64Vec2;
 use itertools::Itertools;
 use miette::miette;
-use tracing::info;
 use nom::{
     character::complete::{char, i64, line_ending},
     multi::separated_list1,
@@ -11,21 +9,58 @@ use nom::{
 };
 
 const DIRECTIONS: [I64Vec2; 4] = [
-    I64Vec2::new(0, -1),  // up
-    I64Vec2::new(1, 0),   // right
-    I64Vec2::new(0, 1),   // down
-    I64Vec2::new(-1, 0),  // left
+    I64Vec2::new(0, -1),
+    I64Vec2::new(1, 0),
+    I64Vec2::new(0, 1),
+    I64Vec2::new(-1, 0),
 ];
 
 #[tracing::instrument(skip(input))]
 pub fn process(input: &str) -> miette::Result<String> {
     let (_, points) = read_input(input).map_err(|e| miette!("parse failed {}", e))?;
+    let edges = polygon(&points);
 
-    let polygon = polygon(&points);
+    let largest = points
+        .iter()
+        .tuple_combinations()
+        .filter(|(a, b)| rectangle_fits(**a, **b, &edges))
+        .map(|(a, b)| {
+            let d = *a - *b;
+            (d.x.abs() + 1) * (d.y.abs() + 1)
+        })
+        .max()
+        .unwrap();
 
+    Ok(largest.to_string())
+}
 
+fn rectangle_fits(p1: I64Vec2, p2: I64Vec2, edges: &HashSet<Edge>) -> bool {
+    let min_x = p1.x.min(p2.x);
+    let max_x = p1.x.max(p2.x);
+    let min_y = p1.y.min(p2.y);
+    let max_y = p1.y.max(p2.y);
 
-    Ok("50".to_string())
+    for edge in edges {
+        if polygon_crosses_rectangle(edge, min_x, max_x, min_y, max_y) {
+            return false;
+        }
+    }
+
+    true
+}
+
+fn polygon_crosses_rectangle(edge: &Edge, min_x: i64, max_x: i64, min_y: i64, max_y: i64) -> bool {
+    if edge.start.x == edge.end.x {
+        // Vertical edge
+        let x = edge.start.x;
+        let (y1, y2) = (edge.start.y.min(edge.end.y), edge.start.y.max(edge.end.y));
+        x > min_x && x < max_x && y2 > min_y && y1 < max_y
+    } else {
+        // Horizontal edge
+        let y = edge.start.y;
+        let (x1, x2) = (edge.start.x.min(edge.end.x), edge.start.x.max(edge.end.x));
+        y > min_y && y < max_y && x2 > min_x && x1 < max_x
+    }
 }
 
 fn polygon(points: &HashSet<I64Vec2>) -> HashSet<Edge> {
