@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+
 use glam::I64Vec2;
 use itertools::Itertools;
 use miette::miette;
@@ -8,32 +9,32 @@ use nom::{
     IResult, Parser,
 };
 
-const DIRECTIONS: [I64Vec2; 4] = [
-    I64Vec2::new(0, -1),
-    I64Vec2::new(1, 0),
-    I64Vec2::new(0, 1),
-    I64Vec2::new(-1, 0),
-];
-
 #[tracing::instrument(skip(input))]
 pub fn process(input: &str) -> miette::Result<String> {
     let (_, points) = read_input(input).map_err(|e| miette!("parse failed {}", e))?;
-    let polygon = polygon(&points);
 
+    // find all the edges of the polygon
+    let edges = polygon(&points);
+
+    // find the largest rectangle that fits in the polygon
+    // keep a max to prevent trying squares that are too small to beat the current max
     let largest = points
         .iter()
         .tuple_combinations()
-        .filter(|(a, b)| rectangle_fits(**a, **b, &polygon))
-        .map(|(a, b)| {
+        .fold(0i64, |max, (a, b)| {
             let d = *a - *b;
-            (d.x.abs() + 1) * (d.y.abs() + 1)
-        })
-        .max()
-        .unwrap();
+            let area = (d.x.abs() + 1) * (d.y.abs() + 1);
+            if area > max && rectangle_fits(*a, *b, &edges) {
+                area
+            } else {
+                max
+            }
+        });
 
     Ok(largest.to_string())
 }
 
+// we have 2 points that form a rectangle, check if any of the edges of the polygon cross the rectangle
 fn rectangle_fits(p1: I64Vec2, p2: I64Vec2, edges: &HashSet<Edge>) -> bool {
     let min_x = p1.x.min(p2.x);
     let max_x = p1.x.max(p2.x);
@@ -49,6 +50,7 @@ fn rectangle_fits(p1: I64Vec2, p2: I64Vec2, edges: &HashSet<Edge>) -> bool {
     true
 }
 
+// check if an edge crosses a rectangle
 fn polygon_crosses_rectangle(edge: &Edge, min_x: i64, max_x: i64, min_y: i64, max_y: i64) -> bool {
     if edge.start.x == edge.end.x {
         let x = edge.start.x;
@@ -61,27 +63,40 @@ fn polygon_crosses_rectangle(edge: &Edge, min_x: i64, max_x: i64, min_y: i64, ma
     }
 }
 
+// build up a polygon from the points
 fn polygon(points: &HashSet<I64Vec2>) -> HashSet<Edge> {
-    let min_x = points.iter().map(|p| p.x).min().unwrap();
-    let max_x = points.iter().map(|p| p.x).max().unwrap();
-    let min_y = points.iter().map(|p| p.y).min().unwrap();
-    let max_y = points.iter().map(|p| p.y).max().unwrap();
-
     let mut polygon: HashSet<Edge> = HashSet::new();
 
     for point in points {
         let mut neighbors: Vec<Edge> = Vec::new();
 
-        for direction in DIRECTIONS {
-            let mut curr = *point + direction;
-
-            while curr.x >= min_x && curr.x <= max_x && curr.y >= min_y && curr.y <= max_y {
-                if points.contains(&curr) {
-                    neighbors.push(Edge::new(*point, curr));
-                    break;
-                }
-                curr += direction;
-            }
+        // N
+        if let Some(closest) = points.iter()
+            .filter(|p| p.x == point.x && p.y < point.y)
+            .max_by_key(|p| p.y)
+        {
+            neighbors.push(Edge::new(*point, *closest));
+        }
+        // S
+        if let Some(closest) = points.iter()
+            .filter(|p| p.x == point.x && p.y > point.y)
+            .min_by_key(|p| p.y)
+        {
+            neighbors.push(Edge::new(*point, *closest));
+        }
+        // W
+        if let Some(closest) = points.iter()
+            .filter(|p| p.y == point.y && p.x < point.x)
+            .max_by_key(|p| p.x)
+        {
+            neighbors.push(Edge::new(*point, *closest));
+        }
+        // E
+        if let Some(closest) = points.iter()
+            .filter(|p| p.y == point.y && p.x > point.x)
+            .min_by_key(|p| p.x)
+        {
+            neighbors.push(Edge::new(*point, *closest));
         }
 
         assert!(neighbors.len() >= 2, "Point {:?} has fewer than 2 neighbors", point);
