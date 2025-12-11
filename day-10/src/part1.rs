@@ -1,3 +1,5 @@
+use std::collections::{HashSet, VecDeque};
+
 use miette::miette;
 use nom::{
     bytes::complete::{tag, take_until, take_while1},
@@ -16,8 +18,27 @@ pub fn process(input: &str) -> miette::Result<String> {
 }
 
 fn press_buttons(start: u64, machine: &Machine) -> u64 {
-    dbg!(&start, &machine);
-    return 0;
+    let target = machine.target;
+
+    let mut visited: HashSet<u64> = HashSet::new();
+    let mut queue: VecDeque<(u64, u64)> = VecDeque::new();
+
+    queue.push_back((start, 0));
+    visited.insert(start);
+
+    while let Some((state, presses)) = queue.pop_front() {
+        for &button in &machine.buttons {
+            let new_state = state ^ button;
+            if new_state == target {
+                return presses + 1;
+            }
+            if visited.insert(new_state) {
+                queue.push_back((new_state, presses + 1));
+            }
+        }
+    }
+
+    panic!("no solution found");
 }
 
 
