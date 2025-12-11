@@ -17,28 +17,40 @@ pub fn process(input: &str) -> miette::Result<String> {
     Ok(count.to_string())
 }
 
+// We use a DFS, keep tracking using a bitmask as this copies really fast with rust
 fn dfs<'a>(current: &'a str, mask: u8, devices: &'a HashMap<String, Vec<String>>, cache: &mut HashMap<(&'a str, u8), usize>,
 ) -> usize {
-    // Update mask: bit 0 = seen fft, bit 1 = seen dac
-    let mask = mask
-        | if current == "fft" { 1 } else { 0 }
-        | if current == "dac" { 2 } else { 0 };
 
+    let mask = mask | match current {
+        "fft" => 0b01,
+        "dac" => 0b10,
+        _ => 0,
+    };
+
+    // we reached the end, make sure we saw both by checking if both bits are set
     if current == "out" {
-        return if mask == 3 { 1 } else { 0 };
+        return match mask {
+            0b11 => 1,
+            _ => 0,
+        };
     }
 
+    // we have a cache hit, return the cached value
     if let Some(&cached) = cache.get(&(current, mask)) {
         return cached;
     }
 
+    // get the outputs for the current device
     let Some(outputs) = devices.get(current) else {
         return 0;
     };
 
+    // recurse through the outputs
     let count: usize = outputs.iter().map(|next| dfs(next, mask, devices, cache)).sum();
 
+    // cache the result
     cache.insert((current, mask), count);
+
     count
 }
 
