@@ -17,7 +17,7 @@ pub fn process(input: &str) -> miette::Result<String> {
     Ok(count.to_string())
 }
 
-// We use a DFS, keep tracking using a bitmask as this copies really fast with rust
+// I use a DFS, keep tracking using a bitmask as this copies really fast with rust
 fn dfs<'a>(current: &'a str, mask: u8, devices: &'a HashMap<String, Vec<String>>, cache: &mut HashMap<(&'a str, u8), usize>,
 ) -> usize {
 
