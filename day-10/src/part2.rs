@@ -20,6 +20,7 @@ use z3::ast::Int;
 // I tried to solve this myself using matrices, but I couldnt find a working solution.
 // Then I checked for existing rust crates, found some, but neither worked for me.
 // Eventually z3 worked
+
 #[tracing::instrument(skip(input))]
 pub fn process(input: &str) -> miette::Result<String> {
     let (_, machines) = parse_input(input).map_err(|e| miette!("parse failed {}", e))?;
